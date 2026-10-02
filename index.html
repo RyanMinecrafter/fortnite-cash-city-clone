@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Overload Cash City</title>
+    <title>Overload Cash City - Advanced</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -13,7 +13,7 @@
           <span class="brand-mark">⚡</span>
           <div>
             <h1>OVERLOAD CASH CITY</h1>
-            <p>Fortnite-inspired survivial prototype</p>
+            <p>Advanced Battle Royale Prototype</p>
           </div>
         </div>
         <div class="stats">
@@ -26,6 +26,10 @@
             <span id="healthValue">100</span>
           </div>
           <div class="stat">
+            <span class="label">Shield</span>
+            <span id="shieldValue">0</span>
+          </div>
+          <div class="stat">
             <span class="label">Wave</span>
             <span id="waveValue">1</span>
           </div>
@@ -36,21 +40,61 @@
         <span>WASD move</span>
         <span>Mouse aim</span>
         <span>Click fire</span>
-        <span>B build wall</span>
+        <span>1-4 build</span>
+        <span>E loot</span>
         <span>R restart</span>
       </div>
     </div>
 
-    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+    <div class="game-container">
+      <canvas id="gameCanvas" width="1600" height="900"></canvas>
+      <div id="buildMenu" class="build-menu">
+        <div class="build-slot" data-type="wall">
+          <span class="icon">🧱</span>
+          <span class="label">Wall</span>
+          <span class="cost">22</span>
+        </div>
+        <div class="build-slot" data-type="floor">
+          <span class="icon">📦</span>
+          <span class="label">Floor</span>
+          <span class="cost">22</span>
+        </div>
+        <div class="build-slot" data-type="ramp">
+          <span class="icon">📐</span>
+          <span class="label">Ramp</span>
+          <span class="cost">22</span>
+        </div>
+        <div class="build-slot" data-type="roof">
+          <span class="icon">🔺</span>
+          <span class="label">Roof</span>
+          <span class="cost">22</span>
+        </div>
+      </div>
+    </div>
 
     <div id="gameOverlay" class="overlay visible">
       <div class="panel">
         <h2>Ready for the drop?</h2>
-        <p>Collect cash, survive enemy swarms, and build cover before the city goes dark.</p>
+        <p>Land on the Cash City island, loot from zones, survive enemy squads, and build your way to victory.</p>
         <button id="startButton">Start Match</button>
       </div>
     </div>
 
+    <div id="lootPanel" class="loot-panel hidden">
+      <div class="loot-content">
+        <h3>Nearby Loot</h3>
+        <div id="lootList" class="loot-list"></div>
+        <button id="lootCloseBtn">Close</button>
+      </div>
+    </div>
+
+    <audio id="shootSound" preload="auto"></audio>
+    <audio id="buildSound" preload="auto"></audio>
+    <audio id="hitSound" preload="auto"></audio>
+    <audio id="pickupSound" preload="auto"></audio>
+    <audio id="levelUpSound" preload="auto"></audio>
+
+    <script src="sound.js"></script>
     <script src="game.js"></script>
   </body>
 </html>

@@ -19,30 +19,29 @@
 
 html, body {
   margin: 0;
-  min-height: 100%;
-  background:
-    radial-gradient(circle at top, rgba(26, 55, 75, 0.7), transparent 40%),
-    linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
   color: var(--text);
   font-family: Inter, "Segoe UI", sans-serif;
+  overflow: hidden;
 }
 
 body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
+  width: 100%;
+  height: 100vh;
+  padding: 0;
 }
 
 .hud-shell {
-  width: min(1280px, 100%);
+  width: 100%;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-bottom: none;
-  border-radius: 18px 18px 0 0;
+  border-bottom: 1px solid var(--line);
   backdrop-filter: blur(12px);
-  box-shadow: 0 16px 36px var(--shadow);
+  box-shadow: 0 8px 24px var(--shadow);
+  z-index: 100;
 }
 
 .topbar {
@@ -50,7 +49,8 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 20px 10px;
+  padding: 12px 20px;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -63,38 +63,38 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: linear-gradient(135deg, rgba(126, 240, 255, 0.25), rgba(255, 209, 102, 0.18));
   border: 1px solid rgba(126, 240, 255, 0.4);
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .brand h1 {
   margin: 0;
-  font-size: clamp(1.1rem, 2vw, 2rem);
-  letter-spacing: 0.18em;
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
 }
 
 .brand p {
   margin: 2px 0 0;
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.65rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .stats {
   display: flex;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .stat {
-  min-width: 96px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  min-width: 80px;
+  padding: 8px 12px;
+  border-radius: 10px;
   background: rgba(19, 38, 56, 0.8);
   border: 1px solid rgba(126, 240, 255, 0.18);
   display: flex;
@@ -103,45 +103,108 @@ body {
 }
 
 .label {
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
 #cashValue,
 #healthValue,
+#shieldValue,
 #waveValue {
-  margin-top: 4px;
-  font-size: 1.2rem;
+  margin-top: 3px;
+  font-size: 1rem;
   font-weight: 700;
 }
 
 #cashValue { color: var(--gold); }
-#healthValue { color: var(--success); }
-#waveValue { color: var(--accent); }
+#healthValue { color: var(--danger); }
+#shieldValue { color: var(--accent); }
+#waveValue { color: var(--success); }
 
 .controls-bar {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 8px 20px 16px;
+  gap: 10px;
+  padding: 6px 20px 10px;
   color: var(--muted);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.game-container {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
 canvas {
   display: block;
-  width: min(1280px, 100%);
-  height: auto;
+  width: 100%;
+  height: 100%;
+}
+
+.build-menu {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: var(--panel-2);
   border: 1px solid var(--line);
-  border-top: none;
-  border-radius: 0 0 18px 18px;
-  background: linear-gradient(180deg, #132f43 0%, #0e2130 42%, #102335 100%);
-  box-shadow: 0 16px 36px var(--shadow);
+  border-radius: 14px;
+  padding: 12px;
+  backdrop-filter: blur(12px);
+  z-index: 50;
+}
+
+.build-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 70px;
+  padding: 10px;
+  background: rgba(13, 35, 53, 0.6);
+  border: 1px solid rgba(126, 240, 255, 0.25);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text);
+}
+
+.build-slot:hover {
+  background: rgba(126, 240, 255, 0.15);
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.build-slot.active {
+  background: rgba(126, 240, 255, 0.25);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(126, 240, 255, 0.3);
+}
+
+.build-slot .icon {
+  font-size: 1.4rem;
+}
+
+.build-slot .label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.build-slot .cost {
+  font-size: 0.7rem;
+  color: var(--gold);
+  font-weight: 700;
 }
 
 .overlay {
@@ -150,12 +213,13 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(4, 10, 19, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(4, 10, 19, 0.65);
+  backdrop-filter: blur(8px);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: all 0.2s ease;
+  z-index: 200;
 }
 
 .overlay.visible {
@@ -166,17 +230,29 @@ canvas {
 
 .panel {
   width: min(500px, 90vw);
-  background: rgba(11, 28, 42, 0.9);
-  border: 1px solid rgba(126, 240, 255, 0.3);
-  border-radius: 18px;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
-  padding: 28px 24px;
+  background: rgba(11, 28, 42, 0.95);
+  border: 2px solid rgba(126, 240, 255, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: 32px 28px;
   text-align: center;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .panel h2 {
   margin: 0 0 12px;
-  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  font-size: 2rem;
   letter-spacing: 0.08em;
 }
 
@@ -184,37 +260,92 @@ canvas {
   margin: 0 0 20px;
   color: var(--muted);
   line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 button {
   appearance: none;
   border: none;
-  border-radius: 999px;
-  padding: 14px 28px;
-  background: linear-gradient(135deg, #7ef0ff, #ffd166);
+  border-radius: 10px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, var(--accent), var(--gold));
   color: #07141a;
   font-weight: 900;
-  font-size: 1rem;
+  font-size: 0.95rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 10px 24px rgba(126, 240, 255, 0.25);
+  transition: all 0.15s ease;
+  box-shadow: 0 8px 20px rgba(126, 240, 255, 0.25);
 }
 
 button:hover {
-  transform: translateY(-1px) scale(1.01);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(126, 240, 255, 0.35);
 }
 
 button:active {
-  transform: translateY(1px);
+  transform: translateY(0);
 }
 
-@media (max-width: 760px) {
-  body {
-    padding: 12px;
-  }
+.loot-panel {
+  position: fixed;
+  left: 20px;
+  top: 100px;
+  width: 280px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  backdrop-filter: blur(12px);
+  z-index: 80;
+  opacity: 1;
+  visibility: visible;
+  transition: all 0.2s ease;
+}
 
+.loot-panel.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loot-content h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+}
+
+.loot-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.loot-item {
+  padding: 8px 10px;
+  background: rgba(19, 38, 56, 0.6);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.loot-item .qty {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.loot-panel button {
+  width: 100%;
+  padding: 8px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
   .topbar {
     flex-direction: column;
     align-items: flex-start;
@@ -222,10 +353,19 @@ button:active {
 
   .stats {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
-  .controls-bar {
-    justify-content: flex-start;
+  .build-menu {
+    bottom: 10px;
+    right: 10px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 8px;
+  }
+
+  .build-slot {
+    width: 60px;
+    padding: 8px;
   }
 }
