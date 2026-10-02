@@ -1,371 +1,78 @@
-* {
-  box-sizing: border-box;
-}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Overload Cash City - 4 Player Squad</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="hud-shell">
+      <div class="topbar">
+        <div class="brand">
+          <span class="brand-mark">⚡</span>
+          <div>
+            <h1>OVERLOAD CASH CITY</h1>
+            <p>Authentic 4-player squad battle</p>
+          </div>
+        </div>
+        <div class="stats" id="squadStats">
+          <div class="stat player-pill p1">
+            <span class="label">Ranger</span>
+            <span id="p1Stat">100</span>
+          </div>
+          <div class="stat player-pill p2">
+            <span class="label">Blitz</span>
+            <span id="p2Stat">100</span>
+          </div>
+          <div class="stat player-pill p3">
+            <span class="label">Nova</span>
+            <span id="p3Stat">100</span>
+          </div>
+          <div class="stat player-pill p4">
+            <span class="label">Talon</span>
+            <span id="p4Stat">100</span>
+          </div>
+        </div>
+      </div>
 
-:root {
-  --bg-1: #08131e;
-  --bg-2: #10293b;
-  --panel: rgba(10, 23, 38, 0.75);
-  --panel-2: rgba(16, 36, 52, 0.8);
-  --line: rgba(108, 183, 255, 0.5);
-  --text: #eaf6ff;
-  --muted: #96bad9;
-  --gold: #ffd166;
-  --accent: #7ef0ff;
-  --danger: #ff5d6c;
-  --success: #7df9a6;
-  --shadow: rgba(0, 0, 0, 0.32);
-}
+      <div class="controls-bar">
+        <span>P1: WASD + mouse</span>
+        <span>P2: IJKL + O</span>
+        <span>P3: TFGH + Y</span>
+        <span>P4: Arrows + /</span>
+        <span>1-4 build</span>
+        <span>R restart</span>
+      </div>
+    </div>
 
-html, body {
-  margin: 0;
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
-  color: var(--text);
-  font-family: Inter, "Segoe UI", sans-serif;
-  overflow: hidden;
-}
+    <div class="game-container">
+      <canvas id="gameCanvas" width="1600" height="900"></canvas>
+      <div id="buildMenu" class="build-menu">
+        <div class="build-slot" data-type="wall"><span class="icon">🧱</span><span class="label">Wall</span><span class="cost">22</span></div>
+        <div class="build-slot" data-type="floor"><span class="icon">📦</span><span class="label">Floor</span><span class="cost">22</span></div>
+        <div class="build-slot" data-type="ramp"><span class="icon">📐</span><span class="label">Ramp</span><span class="cost">26</span></div>
+        <div class="build-slot" data-type="roof"><span class="icon">🔺</span><span class="label">Roof</span><span class="cost">24</span></div>
+      </div>
+    </div>
 
-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  height: 100vh;
-  padding: 0;
-}
+    <div id="gameOverlay" class="overlay visible">
+      <div class="panel">
+        <h2>Squad Drop</h2>
+        <p>Land in Cash City, loot from the five battle zones, build cover, and survive with your 4-player squad.</p>
+        <button id="startButton">Start Match</button>
+      </div>
+    </div>
 
-.hud-shell {
-  width: 100%;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px var(--shadow);
-  z-index: 100;
-}
+    <div id="lootPanel" class="loot-panel hidden">
+      <div class="loot-content">
+        <h3>Nearby Loot</h3>
+        <div id="lootList" class="loot-list"></div>
+        <button id="lootCloseBtn">Close</button>
+      </div>
+    </div>
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 20px;
-  flex-wrap: wrap;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(126, 240, 255, 0.25), rgba(255, 209, 102, 0.18));
-  border: 1px solid rgba(126, 240, 255, 0.4);
-  font-size: 18px;
-}
-
-.brand h1 {
-  margin: 0;
-  font-size: 1.1rem;
-  letter-spacing: 0.12em;
-}
-
-.brand p {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.stats {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.stat {
-  min-width: 80px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(19, 38, 56, 0.8);
-  border: 1px solid rgba(126, 240, 255, 0.18);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.label {
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-#cashValue,
-#healthValue,
-#shieldValue,
-#waveValue {
-  margin-top: 3px;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-#cashValue { color: var(--gold); }
-#healthValue { color: var(--danger); }
-#shieldValue { color: var(--accent); }
-#waveValue { color: var(--success); }
-
-.controls-bar {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 6px 20px 10px;
-  color: var(--muted);
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.game-container {
-  flex: 1;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.build-menu {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
-  backdrop-filter: blur(12px);
-  z-index: 50;
-}
-
-.build-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  width: 70px;
-  padding: 10px;
-  background: rgba(13, 35, 53, 0.6);
-  border: 1px solid rgba(126, 240, 255, 0.25);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  color: var(--text);
-}
-
-.build-slot:hover {
-  background: rgba(126, 240, 255, 0.15);
-  border-color: var(--accent);
-  transform: scale(1.05);
-}
-
-.build-slot.active {
-  background: rgba(126, 240, 255, 0.25);
-  border-color: var(--accent);
-  box-shadow: 0 0 12px rgba(126, 240, 255, 0.3);
-}
-
-.build-slot .icon {
-  font-size: 1.4rem;
-}
-
-.build-slot .label {
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.build-slot .cost {
-  font-size: 0.7rem;
-  color: var(--gold);
-  font-weight: 700;
-}
-
-.overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(4, 10, 19, 0.65);
-  backdrop-filter: blur(8px);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: all 0.2s ease;
-  z-index: 200;
-}
-
-.overlay.visible {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-}
-
-.panel {
-  width: min(500px, 90vw);
-  background: rgba(11, 28, 42, 0.95);
-  border: 2px solid rgba(126, 240, 255, 0.4);
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  padding: 32px 28px;
-  text-align: center;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.panel h2 {
-  margin: 0 0 12px;
-  font-size: 2rem;
-  letter-spacing: 0.08em;
-}
-
-.panel p {
-  margin: 0 0 20px;
-  color: var(--muted);
-  line-height: 1.6;
-  font-size: 0.95rem;
-}
-
-button {
-  appearance: none;
-  border: none;
-  border-radius: 10px;
-  padding: 12px 28px;
-  background: linear-gradient(135deg, var(--accent), var(--gold));
-  color: #07141a;
-  font-weight: 900;
-  font-size: 0.95rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 8px 20px rgba(126, 240, 255, 0.25);
-}
-
-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(126, 240, 255, 0.35);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-.loot-panel {
-  position: fixed;
-  left: 20px;
-  top: 100px;
-  width: 280px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px;
-  backdrop-filter: blur(12px);
-  z-index: 80;
-  opacity: 1;
-  visibility: visible;
-  transition: all 0.2s ease;
-}
-
-.loot-panel.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.loot-content h3 {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  letter-spacing: 0.08em;
-}
-
-.loot-list {
-  max-height: 300px;
-  overflow-y: auto;
-  margin-bottom: 12px;
-}
-
-.loot-item {
-  padding: 8px 10px;
-  background: rgba(19, 38, 56, 0.6);
-  border-radius: 8px;
-  margin-bottom: 6px;
-  font-size: 0.85rem;
-  color: var(--text);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.loot-item .qty {
-  color: var(--gold);
-  font-weight: 700;
-}
-
-.loot-panel button {
-  width: 100%;
-  padding: 8px;
-  font-size: 0.8rem;
-}
-
-@media (max-width: 900px) {
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .stats {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .build-menu {
-    bottom: 10px;
-    right: 10px;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-    padding: 8px;
-  }
-
-  .build-slot {
-    width: 60px;
-    padding: 8px;
-  }
-}
+    <script src="sound.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
