@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Overload Cash City - Advanced</title>
+    <title>Overload Cash City - Solo</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -13,7 +13,7 @@
           <span class="brand-mark">⚡</span>
           <div>
             <h1>OVERLOAD CASH CITY</h1>
-            <p>Advanced Battle Royale Prototype</p>
+            <p>Solo survival battle royale</p>
           </div>
         </div>
         <div class="stats">
@@ -28,6 +28,10 @@
           <div class="stat">
             <span class="label">Shield</span>
             <span id="shieldValue">0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Materials</span>
+            <span id="materialsValue">0</span>
           </div>
           <div class="stat">
             <span class="label">Wave</span>
@@ -62,12 +66,12 @@
         <div class="build-slot" data-type="ramp">
           <span class="icon">📐</span>
           <span class="label">Ramp</span>
-          <span class="cost">22</span>
+          <span class="cost">26</span>
         </div>
         <div class="build-slot" data-type="roof">
           <span class="icon">🔺</span>
           <span class="label">Roof</span>
-          <span class="cost">22</span>
+          <span class="cost">24</span>
         </div>
       </div>
     </div>
@@ -75,7 +79,7 @@
     <div id="gameOverlay" class="overlay visible">
       <div class="panel">
         <h2>Ready for the drop?</h2>
-        <p>Land on the Cash City island, loot from zones, survive enemy squads, and build your way to victory.</p>
+        <p>Land in Cash City, collect loot, survive enemy waves, and build your way to victory.</p>
         <button id="startButton">Start Match</button>
       </div>
     </div>
@@ -87,12 +91,6 @@
         <button id="lootCloseBtn">Close</button>
       </div>
     </div>
-
-    <audio id="shootSound" preload="auto"></audio>
-    <audio id="buildSound" preload="auto"></audio>
-    <audio id="hitSound" preload="auto"></audio>
-    <audio id="pickupSound" preload="auto"></audio>
-    <audio id="levelUpSound" preload="auto"></audio>
 
     <script src="sound.js"></script>
     <script src="game.js"></script>
