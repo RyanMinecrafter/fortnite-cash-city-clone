@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Overload Cash City</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="hud-shell">
+      <div class="topbar">
+        <div class="brand">
+          <span class="brand-mark">⚡</span>
+          <div>
+            <h1>OVERLOAD CASH CITY</h1>
+            <p>Fortnite-inspired survivial prototype</p>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Cash</span>
+            <span id="cashValue">0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Health</span>
+            <span id="healthValue">100</span>
+          </div>
+          <div class="stat">
+            <span class="label">Wave</span>
+            <span id="waveValue">1</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-bar">
+        <span>WASD move</span>
+        <span>Mouse aim</span>
+        <span>Click fire</span>
+        <span>B build wall</span>
+        <span>R restart</span>
+      </div>
+    </div>
+
+    <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+    <div id="gameOverlay" class="overlay visible">
+      <div class="panel">
+        <h2>Ready for the drop?</h2>
+        <p>Collect cash, survive enemy swarms, and build cover before the city goes dark.</p>
+        <button id="startButton">Start Match</button>
+      </div>
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+</html>

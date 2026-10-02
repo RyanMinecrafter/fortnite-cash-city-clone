@@ -1,0 +1,231 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-1: #08131e;
+  --bg-2: #10293b;
+  --panel: rgba(10, 23, 38, 0.75);
+  --panel-2: rgba(16, 36, 52, 0.8);
+  --line: rgba(108, 183, 255, 0.5);
+  --text: #eaf6ff;
+  --muted: #96bad9;
+  --gold: #ffd166;
+  --accent: #7ef0ff;
+  --danger: #ff5d6c;
+  --success: #7df9a6;
+  --shadow: rgba(0, 0, 0, 0.32);
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(26, 55, 75, 0.7), transparent 40%),
+    linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  color: var(--text);
+  font-family: Inter, "Segoe UI", sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.hud-shell {
+  width: min(1280px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 18px 18px 0 0;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 36px var(--shadow);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(126, 240, 255, 0.25), rgba(255, 209, 102, 0.18));
+  border: 1px solid rgba(126, 240, 255, 0.4);
+  font-size: 22px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 2rem);
+  letter-spacing: 0.18em;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  min-width: 96px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(19, 38, 56, 0.8);
+  border: 1px solid rgba(126, 240, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.label {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+#cashValue,
+#healthValue,
+#waveValue {
+  margin-top: 4px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+#cashValue { color: var(--gold); }
+#healthValue { color: var(--success); }
+#waveValue { color: var(--accent); }
+
+.controls-bar {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 20px 16px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+canvas {
+  display: block;
+  width: min(1280px, 100%);
+  height: auto;
+  border: 1px solid var(--line);
+  border-top: none;
+  border-radius: 0 0 18px 18px;
+  background: linear-gradient(180deg, #132f43 0%, #0e2130 42%, #102335 100%);
+  box-shadow: 0 16px 36px var(--shadow);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 10, 19, 0.55);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.overlay.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.panel {
+  width: min(500px, 90vw);
+  background: rgba(11, 28, 42, 0.9);
+  border: 1px solid rgba(126, 240, 255, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  letter-spacing: 0.08em;
+}
+
+.panel p {
+  margin: 0 0 20px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+button {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #7ef0ff, #ffd166);
+  color: #07141a;
+  font-weight: 900;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 10px 24px rgba(126, 240, 255, 0.25);
+}
+
+button:hover {
+  transform: translateY(-1px) scale(1.01);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 760px) {
+  body {
+    padding: 12px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .controls-bar {
+    justify-content: flex-start;
+  }
+}
