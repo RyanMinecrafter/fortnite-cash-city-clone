@@ -1,1 +1,713 @@
-const canvas = document.getElementById('gameCanvas');\nconst ctx = canvas.getContext('2d');\nconst overlay = document.getElementById('gameOverlay');\nconst startButton = document.getElementById('startButton');\nconst lootPanel = document.getElementById('lootPanel');\nconst lootList = document.getElementById('lootList');\nconst lootCloseBtn = document.getElementById('lootCloseBtn');\nconst buildMenu = document.getElementById('buildMenu');\n\nconst world = { width: 1600, height: 900 };\nconst keys = {};\nconst mouse = { x: world.width / 2, y: world.height / 2, down: false };\n\nconst state = {\n  running: false,\n  lastTime: 0,\n  spawnTimer: 0,\n  wave: 1,\n  gameTime: 0,\n  buildMode: null,\n};\n\n// Four players with distinct control schemes\nconst players = [\n  {\n    id: 0,\n    name: 'Ranger',\n    color: '#7ef0ff',\n    x: 400,\n    y: 400,\n    radius: 14,\n    speed: 240,\n    angle: 0,\n    health: 100,\n    maxHealth: 100,\n    shield: 0,\n    maxShield: 50,\n    cash: 0,\n    materials: 0,\n    fireCooldown: 0,\n    shootRate: 0.16,\n    damage: 14,\n    bullets: [],\n    keys: { up: 'w', down: 's', left: 'a', right: 'd', shoot: 'z' },\n  },\n  {\n    id: 1,\n    name: 'Blitz',\n    color: '#ffb86c',\n    x: 600,\n    y: 400,\n    radius: 14,\n    speed: 240,\n    angle: 0,\n    health: 100,\n    maxHealth: 100,\n    shield: 0,\n    maxShield: 50,\n    cash: 0,\n    materials: 0,\n    fireCooldown: 0,\n    shootRate: 0.16,\n    damage: 14,\n    bullets: [],\n    keys: { up: 'i', down: 'k', left: 'j', right: 'l', shoot: 'o' },\n  },\n  {\n    id: 2,\n    name: 'Nova',\n    color: '#a5ff9a',\n    x: 400,\n    y: 600,\n    radius: 14,\n    speed: 240,\n    angle: 0,\n    health: 100,\n    maxHealth: 100,\n    shield: 0,\n    maxShield: 50,\n    cash: 0,\n    materials: 0,\n    fireCooldown: 0,\n    shootRate: 0.16,\n    damage: 14,\n    bullets: [],\n    keys: { up: 't', down: 'g', left: 'f', right: 'h', shoot: 'y' },\n  },\n  {\n    id: 3,\n    name: 'Talon',\n    color: '#d8a6ff',\n    x: 600,\n    y: 600,\n    radius: 14,\n    speed: 240,\n    angle: 0,\n    health: 100,\n    maxHealth: 100,\n    shield: 0,\n    maxShield: 50,\n    cash: 0,\n    materials: 0,\n    fireCooldown: 0,\n    shootRate: 0.16,\n    damage: 14,\n    bullets: [],\n    keys: { up: 'arrowup', down: 'arrowdown', left: 'arrowleft', right: 'arrowright', shoot: '/' },\n  },\n];\n\nconst enemies = [];\nconst pickups = [];\nconst walls = [];\nconst lootZones = [];\nconst particles = [];\n\nfunction initLootZones() {\n  lootZones.length = 0;\n  const zones = [\n    { x: 300, y: 180, name: '💰 Gold Bank', items: ['ammo', 'ammo', 'shield_pot', 'cash'] },\n    { x: 1300, y: 180, name: '🏪 Commerce Plaza', items: ['cash', 'cash', 'ammo', 'shield_pot'] },\n    { x: 180, y: 700, name: '⚔️ Arena', items: ['ammo', 'ammo', 'ammo', 'cash'] },\n    { x: 1400, y: 750, name: '🏰 Fort Zone', items: ['materials', 'materials', 'shield_pot', 'cash'] },\n    { x: 800, y: 450, name: '💎 Vault', items: ['materials', 'materials', 'ammo', 'cash', 'cash'] },\n  ];\n\n  zones.forEach((zone) => {\n    lootZones.push({\n      ...zone,\n      radius: 75,\n      lootSpawned: false,\n    });\n  });\n}\n\nfunction spawnLootAtZone(zone) {\n  if (zone.lootSpawned) return;\n  zone.lootSpawned = true;\n\n  zone.items.forEach((item, i) => {\n    const angle = (i / zone.items.length) * Math.PI * 2;\n    const distance = 35;\n    const x = zone.x + Math.cos(angle) * distance;\n    const y = zone.y + Math.sin(angle) * distance;\n\n    let value = 0, type = 'cash';\n    if (item === 'cash') {\n      value = 25 + Math.random() * 15;\n      type = 'cash';\n    } else if (item === 'ammo') {\n      value = 15;\n      type = 'ammo';\n    } else if (item === 'shield_pot') {\n      value = 25;\n      type = 'shield';\n    } else if (item === 'materials') {\n      value = 20;\n      type = 'materials';\n    }\n\n    pickups.push({\n      x, y,\n      radius: 8,\n      type,\n      value,\n      pulse: Math.random() * Math.PI * 2,\n      velocity: {\n        x: (Math.random() - 0.5) * 80,\n        y: (Math.random() - 0.5) * 80,\n      },\n    });\n  });\n}\n\nfunction resetGame() {\n  players.forEach((p, i) => {\n    p.health = p.maxHealth;\n    p.shield = 0;\n    p.cash = 0;\n    p.materials = 0;\n    p.fireCooldown = 0;\n    p.bullets.length = 0;\n    p.x = 400 + (i % 2) * 200;\n    p.y = 400 + Math.floor(i / 2) * 200;\n  });\n  state.wave = 1;\n  state.spawnTimer = 0;\n  state.gameTime = 0;\n  state.buildMode = null;\n  enemies.length = 0;\n  pickups.length = 0;\n  walls.length = 0;\n  particles.length = 0;\n  initLootZones();\n  updateHud();\n}\n\nfunction updateHud() {\n  players.forEach((p) => {\n    const statEl = document.getElementById(`p${p.id + 1}Stat`);\n    if (statEl) {\n      statEl.textContent = Math.max(0, Math.ceil(p.health));\n    }\n  });\n}\n\nfunction clamp(value, min, max) {\n  return Math.min(max, Math.max(min, value));\n}\n\nfunction distance(x1, y1, x2, y2) {\n  return Math.hypot(x2 - x1, y2 - y1);\n}\n\nfunction spawnEnemy() {\n  const side = Math.floor(Math.random() * 4);\n  const margin = 50;\n  let x = 0, y = 0;\n\n  if (side === 0) x = Math.random() * world.width, y = -margin;\n  else if (side === 1) x = world.width + margin, y = Math.random() * world.height;\n  else if (side === 2) x = Math.random() * world.width, y = world.height + margin;\n  else x = -margin, y = Math.random() * world.height;\n\n  const baseSpeed = 50 + state.wave * 5;\n  const bounty = 12 + state.wave * 3;\n  const health = 28 + state.wave * 6;\n\n  enemies.push({\n    x, y,\n    radius: 13,\n    speed: baseSpeed,\n    health, maxHealth: health,\n    bounty, damage: 12 + state.wave * 2,\n    color: `hsl(${Math.random() * 15 + 8}, 78%, 48%)`,\n  });\n}\n\nfunction shootBullet(player) {\n  if (player.fireCooldown > 0 || !state.running) return;\n\n  const dx = mouse.x - player.x;\n  const dy = mouse.y - player.y;\n  const angle = Math.atan2(dy, dx);\n\n  player.angle = angle;\n  player.fireCooldown = player.shootRate;\n\n  player.bullets.push({\n    x: player.x + Math.cos(angle) * (player.radius + 8),\n    y: player.y + Math.sin(angle) * (player.radius + 8),\n    vx: Math.cos(angle) * 580,\n    vy: Math.sin(angle) * 580,\n    radius: 3,\n    damage: player.damage,\n    life: 1.1,\n  });\n\n  playShootSound();\n}\n\nfunction buildStructure(type) {\n  const costs = { wall: 22, floor: 22, ramp: 26, roof: 24 };\n  const cost = costs[type] || 22;\n\n  let builtCount = 0;\n  players.forEach((p) => {\n    if (p.materials >= cost) {\n      p.materials -= cost;\n      builtCount++;\n\n      const angle = p.angle || 0;\n      const x = p.x + Math.cos(angle) * 45;\n      const y = p.y + Math.sin(angle) * 45;\n\n      walls.push({ x, y, w: 38, h: 38, health: 90, type, angle: type === 'ramp' ? angle : 0 });\n    }\n  });\n\n  if (builtCount > 0) {\n    playBuildSound();\n    updateHud();\n  }\n  state.buildMode = null;\n}\n\nfunction handleInput(dt) {\n  players.forEach((p) => {\n    let moveX = 0, moveY = 0;\n\n    if (keys[p.keys.up]) moveY -= 1;\n    if (keys[p.keys.down]) moveY += 1;\n    if (keys[p.keys.left]) moveX -= 1;\n    if (keys[p.keys.right]) moveX += 1;\n\n    const mag = Math.hypot(moveX, moveY) || 1;\n    if (moveX !== 0 || moveY !== 0) {\n      p.x += (moveX / mag) * p.speed * dt;\n      p.y += (moveY / mag) * p.speed * dt;\n    }\n\n    p.x = clamp(p.x, p.radius, world.width - p.radius);\n    p.y = clamp(p.y, p.radius, world.height - p.radius);\n\n    if (p.fireCooldown > 0) p.fireCooldown -= dt;\n  });\n}\n\nfunction updateBullets(dt) {\n  players.forEach((player) => {\n    for (let i = player.bullets.length - 1; i >= 0; i--) {\n      const bullet = player.bullets[i];\n      bullet.x += bullet.vx * dt;\n      bullet.y += bullet.vy * dt;\n      bullet.life -= dt;\n\n      if (\n        bullet.x < -20 ||\n        bullet.x > world.width + 20 ||\n        bullet.y < -20 ||\n        bullet.y > world.height + 20 ||\n        bullet.life <= 0\n      ) {\n        player.bullets.splice(i, 1);\n        continue;\n      }\n\n      for (let j = enemies.length - 1; j >= 0; j--) {\n        const enemy = enemies[j];\n        const dx = bullet.x - enemy.x;\n        const dy = bullet.y - enemy.y;\n        const dist = Math.hypot(dx, dy);\n\n        if (dist < bullet.radius + enemy.radius) {\n          enemy.health -= bullet.damage;\n          player.bullets.splice(i, 1);\n          playHitSound();\n\n          for (let k = 0; k < 4; k++) {\n            particles.push({\n              x: bullet.x, y: bullet.y,\n              vx: (Math.random() - 0.5) * 200,\n              vy: (Math.random() - 0.5) * 200,\n              radius: 2.5,\n              type: 'damage',\n              life: 0.3,\n            });\n          }\n\n          if (enemy.health <= 0) {\n            enemies.splice(j, 1);\n            const bountyEach = Math.floor(enemy.bounty / 4);\n            players.forEach((p) => {\n              p.cash += bountyEach;\n              p.materials += 6 + Math.random() * 6;\n            });\n            playPickupSound();\n\n            for (let k = 0; k < 6; k++) {\n              particles.push({\n                x: enemy.x, y: enemy.y,\n                vx: (Math.random() - 0.5) * 280,\n                vy: (Math.random() - 0.5) * 280,\n                radius: 3.5,\n                type: 'death',\n                life: 0.5,\n              });\n            }\n          }\n          break;\n        }\n      }\n    }\n  });\n}\n\nfunction updateEnemies(dt) {\n  enemies.forEach((enemy) => {\n    // Target closest player\n    let closest = players[0];\n    let closestDist = distance(closest.x, closest.y, enemy.x, enemy.y);\n    \n    players.forEach((p) => {\n      const d = distance(p.x, p.y, enemy.x, enemy.y);\n      if (d < closestDist) {\n        closest = p;\n        closestDist = d;\n      }\n    });\n\n    const dx = closest.x - enemy.x;\n    const dy = closest.y - enemy.y;\n    const dist = Math.hypot(dx, dy) || 1;\n\n    enemy.x += (dx / dist) * enemy.speed * dt;\n    enemy.y += (dy / dist) * enemy.speed * dt;\n\n    // Damage nearest player\n    if (closestDist < enemy.radius + closest.radius + 2) {\n      const damageAmount = enemy.damage * dt * 2.2;\n      if (closest.shield > 0) {\n        const shieldDamage = Math.min(closest.shield, damageAmount);\n        closest.shield -= shieldDamage;\n        closest.health -= damageAmount - shieldDamage;\n      } else {\n        closest.health -= damageAmount;\n      }\n    }\n  });\n\n  // Check if all players dead\n  if (players.every((p) => p.health <= 0)) {\n    state.running = false;\n    overlay.classList.add('visible');\n    overlay.querySelector('h2').textContent = 'Squad Eliminated';\n    overlay.querySelector('p').textContent = `Wave: ${state.wave} | Total Cash: ${Math.floor(players.reduce((sum, p) => sum + p.cash, 0))}`;\n    startButton.textContent = 'Play Again';\n  }\n}\n\nfunction updatePickups(dt) {\n  for (let i = pickups.length - 1; i >= 0; i--) {\n    const pickup = pickups[i];\n    pickup.pulse += dt * 6;\n    pickup.velocity.y += 80 * dt;\n    pickup.x += pickup.velocity.x * dt;\n    pickup.y += pickup.velocity.y * dt;\n    pickup.velocity.x *= 0.92;\n    pickup.velocity.y *= 0.92;\n\n    let pickedUp = false;\n    players.forEach((p) => {\n      const dx = pickup.x - p.x;\n      const dy = pickup.y - p.y;\n      const dist = Math.hypot(dx, dy);\n      if (dist < pickup.radius + p.radius + 18) {\n        if (pickup.type === 'cash') p.cash += pickup.value;\n        if (pickup.type === 'shield' && p.shield < p.maxShield) {\n          p.shield = Math.min(p.maxShield, p.shield + pickup.value);\n        }\n        if (pickup.type === 'materials') p.materials += pickup.value;\n        pickedUp = true;\n      }\n    });\n\n    if (pickedUp) {\n      pickups.splice(i, 1);\n      playPickupSound();\n      updateHud();\n    }\n  }\n}\n\nfunction updateParticles(dt) {\n  for (let i = particles.length - 1; i >= 0; i--) {\n    const p = particles[i];\n    p.x += p.vx * dt;\n    p.y += p.vy * dt;\n    p.life -= dt;\n    if (p.life <= 0) particles.splice(i, 1);\n  }\n}\n\nfunction updateWave(dt) {\n  if (enemies.length === 0 && state.running) {\n    state.wave += 1;\n    playLevelUpSound();\n    for (let i = 0; i < Math.min(4 + state.wave, 12); i++) {\n      spawnEnemy();\n    }\n  }\n\n  state.spawnTimer -= dt;\n  if (state.spawnTimer <= 0 && state.running) {\n    state.spawnTimer = Math.max(0.6, 1.3 - state.wave * 0.05);\n    if (enemies.length < 14) spawnEnemy();\n  }\n\n  state.gameTime += dt;\n}\n\n// Rendering\n\nfunction drawBackground() {\n  ctx.clearRect(0, 0, world.width, world.height);\n  const grad = ctx.createLinearGradient(0, 0, 0, world.height);\n  grad.addColorStop(0, '#0c2a3a');\n  grad.addColorStop(1, '#08202c');\n  ctx.fillStyle = grad;\n  ctx.fillRect(0, 0, world.width, world.height);\n\n  ctx.strokeStyle = 'rgba(126, 240, 255, 0.06)';\n  ctx.lineWidth = 1;\n  const grid = 50;\n  for (let x = 0; x <= world.width; x += grid) {\n    ctx.beginPath();\n    ctx.moveTo(x, 0);\n    ctx.lineTo(x, world.height);\n    ctx.stroke();\n  }\n  for (let y = 0; y <= world.height; y += grid) {\n    ctx.beginPath();\n    ctx.moveTo(0, y);\n    ctx.lineTo(world.width, y);\n    ctx.stroke();\n  }\n\n  lootZones.forEach((zone) => {\n    const grad = ctx.createRadialGradient(zone.x, zone.y, 0, zone.x, zone.y, zone.radius);\n    grad.addColorStop(0, 'rgba(255, 209, 102, 0.08)');\n    grad.addColorStop(1, 'rgba(255, 209, 102, 0)');\n    ctx.fillStyle = grad;\n    ctx.beginPath();\n    ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);\n    ctx.fill();\n\n    ctx.strokeStyle = 'rgba(255, 209, 102, 0.2)';\n    ctx.lineWidth = 1.5;\n    ctx.stroke();\n\n    ctx.fillStyle = 'rgba(255, 209, 102, 0.7)';\n    ctx.font = 'bold 11px sans-serif';\n    ctx.textAlign = 'center';\n    ctx.fillText(zone.name, zone.x, zone.y);\n  });\n}\n\nfunction drawWalls() {\n  walls.forEach((wall) => {\n    ctx.save();\n    ctx.translate(wall.x, wall.y);\n    if (wall.type === 'ramp') ctx.rotate(wall.angle);\n\n    ctx.fillStyle = '#4a6b82';\n    ctx.fillRect(-wall.w / 2, -wall.h / 2, wall.w, wall.h);\n    ctx.strokeStyle = 'rgba(126, 240, 255, 0.35)';\n    ctx.lineWidth = 1.5;\n    ctx.strokeRect(-wall.w / 2, -wall.h / 2, wall.w, wall.h);\n\n    const icons = { wall: '🧱', floor: '📦', ramp: '📐', roof: '🔺' };\n    ctx.font = 'bold 14px sans-serif';\n    ctx.textAlign = 'center';\n    ctx.textBaseline = 'middle';\n    ctx.fillText(icons[wall.type] || '?', 0, 0);\n\n    ctx.restore();\n  });\n}\n\nfunction drawEnemies() {\n  enemies.forEach((enemy) => {\n    const grad = ctx.createRadialGradient(enemy.x - 3, enemy.y - 3, 0, enemy.x, enemy.y, enemy.radius);\n    grad.addColorStop(0, 'rgba(255, 100, 120, 0.85)');\n    grad.addColorStop(1, enemy.color);\n    ctx.fillStyle = grad;\n    ctx.beginPath();\n    ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);\n    ctx.fill();\n\n    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';\n    ctx.lineWidth = 1.2;\n    ctx.stroke();\n\n    const barWidth = enemy.radius * 2;\n    const pct = clamp(enemy.health / enemy.maxHealth, 0, 1);\n    ctx.fillStyle = 'rgba(0,0,0,0.3)';\n    ctx.fillRect(enemy.x - barWidth / 2, enemy.y - enemy.radius - 12, barWidth, 3.5);\n    ctx.fillStyle = `hsl(${Math.max(0, pct * 120)}, 100%, 50%)`;\n    ctx.fillRect(enemy.x - barWidth / 2, enemy.y - enemy.radius - 12, barWidth * pct, 3.5);\n  });\n}\n\nfunction drawBullets() {\n  players.forEach((p) => {\n    p.bullets.forEach((bullet) => {\n      ctx.fillStyle = 'rgba(255, 209, 102, 0.4)';\n      ctx.beginPath();\n      ctx.arc(bullet.x, bullet.y, bullet.radius * 2.5, 0, Math.PI * 2);\n      ctx.fill();\n\n      ctx.fillStyle = '#ffd166';\n      ctx.beginPath();\n      ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);\n      ctx.fill();\n    });\n  });\n}\n\nfunction drawPickups() {\n  pickups.forEach((pickup) => {\n    const bob = Math.sin(pickup.pulse) * 2.5;\n    const icons = { cash: '💵', ammo: '🔫', shield: '🛡️', materials: '⚙️' };\n\n    const glowColor = pickup.type === 'cash' ? 'rgba(255, 209, 102, 0.2)' :\n                      pickup.type === 'shield' ? 'rgba(126, 240, 255, 0.2)' :\n                      'rgba(125, 249, 166, 0.2)';\n    ctx.fillStyle = glowColor;\n    ctx.beginPath();\n    ctx.arc(pickup.x, pickup.y + bob, pickup.radius * 2.2, 0, Math.PI * 2);\n    ctx.fill();\n\n    ctx.font = 'bold 14px sans-serif';\n    ctx.textAlign = 'center';\n    ctx.textBaseline = 'middle';\n    ctx.fillText(icons[pickup.type] || '📦', pickup.x, pickup.y + bob);\n  });\n}\n\nfunction drawParticles() {\n  particles.forEach((p) => {\n    const alpha = clamp(p.life, 0, 1);\n    if (p.type === 'muzzle') ctx.fillStyle = `rgba(255, 209, 102, ${alpha * 0.5})`;\n    else if (p.type === 'damage') ctx.fillStyle = `rgba(255, 100, 120, ${alpha * 0.6})`;\n    else if (p.type === 'death') ctx.fillStyle = `rgba(255, 100, 120, ${alpha * 0.4})`;\n\n    ctx.beginPath();\n    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);\n    ctx.fill();\n  });\n}\n\nfunction drawPlayers() {\n  players.forEach((p) => {\n    ctx.save();\n    ctx.translate(p.x, p.y);\n    ctx.rotate(p.angle || 0);\n\n    const grad = ctx.createRadialGradient(-2.5, -2.5, 0, 0, 0, p.radius);\n    grad.addColorStop(0, 'rgba(255, 255, 255, 0.3)');\n    grad.addColorStop(0.6, p.color);\n    grad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');\n    ctx.fillStyle = grad;\n    ctx.beginPath();\n    ctx.arc(0, 0, p.radius, 0, Math.PI * 2);\n    ctx.fill();\n\n    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';\n    ctx.lineWidth = 1.5;\n    ctx.stroke();\n\n    ctx.fillStyle = '#333';\n    ctx.fillRect(6, -2.5, 14, 5);\n    ctx.fillStyle = '#ffd166';\n    ctx.fillRect(20, -1.5, 5, 3);\n\n    ctx.restore();\n\n    if (p.shield > 0) {\n      ctx.strokeStyle = `rgba(126, 240, 255, ${clamp(p.shield / p.maxShield, 0.25, 0.7)})`;\n      ctx.lineWidth = 1.5;\n      ctx.beginPath();\n      ctx.arc(p.x, p.y, p.radius + 7, 0, Math.PI * 2);\n      ctx.stroke();\n    }\n\n    // Player label\n    ctx.fillStyle = p.color;\n    ctx.font = 'bold 10px sans-serif';\n    ctx.textAlign = 'center';\n    ctx.fillText(p.name, p.x, p.y - p.radius - 10);\n  });\n}\n\nfunction drawHUD() {\n  // Crosshair\n  ctx.strokeStyle = 'rgba(126, 240, 255, 0.4)';\n  ctx.lineWidth = 1;\n  const ch = 10;\n  ctx.beginPath();\n  ctx.moveTo(mouse.x - ch, mouse.y);\n  ctx.lineTo(mouse.x + ch, mouse.y);\n  ctx.moveTo(mouse.x, mouse.y - ch);\n  ctx.lineTo(mouse.x, mouse.y + ch);\n  ctx.stroke();\n\n  // Build mode indicator\n  if (state.buildMode) {\n    const icons = { wall: '🧱', floor: '📦', ramp: '📐', roof: '🔺' };\n    ctx.fillStyle = 'rgba(126, 240, 255, 0.15)';\n    ctx.beginPath();\n    ctx.arc(mouse.x, mouse.y, 40, 0, Math.PI * 2);\n    ctx.fill();\n\n    ctx.font = 'bold 28px sans-serif';\n    ctx.textAlign = 'center';\n    ctx.textBaseline = 'middle';\n    ctx.fillStyle = 'rgba(126, 240, 255, 0.75)';\n    ctx.fillText(icons[state.buildMode] || '?', mouse.x, mouse.y);\n  }\n}\n\nfunction render() {\n  drawBackground();\n  drawWalls();\n  drawPickups();\n  drawBullets();\n  drawParticles();\n  drawEnemies();\n  drawPlayers();\n  drawHUD();\n}\n\nfunction gameLoop(timestamp) {\n  const dt = Math.min(0.033, (timestamp - state.lastTime || 16) / 1000);\n  state.lastTime = timestamp;\n\n  if (state.running) {\n    handleInput(dt);\n    players.forEach((p) => {\n      if (keys[p.keys.shoot]) shootBullet(p);\n    });\n    updateBullets(dt);\n    updateEnemies(dt);\n    updatePickups(dt);\n    updateParticles(dt);\n    updateWave(dt);\n    updateHud();\n  }\n\n  render();\n  requestAnimationFrame(gameLoop);\n}\n\nfunction startGame() {\n  resetGame();\n  state.running = true;\n  overlay.classList.remove('visible');\n  for (let i = 0; i < 4; i++) spawnEnemy();\n}\n\nwindow.addEventListener('keydown', (event) => {\n  const key = event.key.toLowerCase();\n  keys[key] = true;\n\n  const buildTypes = { '1': 'wall', '2': 'floor', '3': 'ramp', '4': 'roof' };\n  if (buildTypes[key]) {\n    if (state.buildMode === buildTypes[key]) {\n      buildStructure(state.buildMode);\n    } else {\n      state.buildMode = buildTypes[key];\n    }\n    updateBuildMenu();\n  }\n\n  if (key === 'r') startGame();\n});\n\nwindow.addEventListener('keyup', (event) => {\n  keys[event.key.toLowerCase()] = false;\n});\n\ncanvas.addEventListener('mousemove', (event) => {\n  const rect = canvas.getBoundingClientRect();\n  const scaleX = canvas.width / rect.width;\n  const scaleY = canvas.height / rect.height;\n  mouse.x = (event.clientX - rect.left) * scaleX;\n  mouse.y = (event.clientY - rect.top) * scaleY;\n});\n\ncanvas.addEventListener('mousedown', () => {\n  mouse.down = true;\n});\n\ncanvas.addEventListener('mouseup', () => {\n  mouse.down = false;\n});\n\nfunction updateBuildMenu() {\n  document.querySelectorAll('.build-slot').forEach((slot) => {\n    const type = slot.getAttribute('data-type');\n    if (state.buildMode === type) {\n      slot.classList.add('active');\n    } else {\n      slot.classList.remove('active');\n    }\n  });\n}\n\ndocument.querySelectorAll('.build-slot').forEach((slot) => {\n  slot.addEventListener('click', () => {\n    const type = slot.getAttribute('data-type');\n    if (state.buildMode === type) {\n      buildStructure(state.buildMode);\n    } else {\n      state.buildMode = type;\n    }\n    updateBuildMenu();\n  });\n});\n\nstartButton.addEventListener('click', startGame);\nlootCloseBtn.addEventListener('click', () => {\n  lootPanel.classList.add('hidden');\n});\n\nresetGame();\nrequestAnimationFrame(gameLoop);\n
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('gameOverlay');
+const startButton = document.getElementById('startButton');
+const lootPanel = document.getElementById('lootPanel');
+const lootList = document.getElementById('lootList');
+const lootCloseBtn = document.getElementById('lootCloseBtn');
+const buildMenu = document.getElementById('buildMenu');
+
+const world = { width: 1600, height: 900 };
+const keys = {};
+const mouse = { x: world.width / 2, y: world.height / 2, down: false };
+
+const state = {
+  running: false,
+  lastTime: 0,
+  spawnTimer: 0,
+  wave: 1,
+  gameTime: 0,
+  buildMode: null,
+  gameMode: 'solo', // solo or squad
+};
+
+// Single player object
+const player = {
+  x: world.width / 2,
+  y: world.height / 2,
+  radius: 15,
+  speed: 260,
+  angle: 0,
+  health: 100,
+  maxHealth: 100,
+  shield: 0,
+  maxShield: 50,
+  cash: 0,
+  materials: 0,
+  fireCooldown: 0,
+  shootRate: 0.15,
+  damage: 16,
+  bullets: [],
+};
+
+const enemies = [];
+const pickups = [];
+const walls = [];
+const lootZones = [];
+const particles = [];
+
+function initLootZones() {
+  lootZones.length = 0;
+  const zones = [
+    { x: 300, y: 180, name: '💰 Gold Bank', items: ['ammo', 'ammo', 'shield_pot', 'cash'] },
+    { x: 1300, y: 180, name: '🏪 Commerce Plaza', items: ['cash', 'cash', 'ammo', 'shield_pot'] },
+    { x: 180, y: 700, name: '⚔️ Arena', items: ['ammo', 'ammo', 'ammo', 'cash'] },
+    { x: 1400, y: 750, name: '🏰 Fort Zone', items: ['materials', 'materials', 'shield_pot', 'cash'] },
+    { x: 800, y: 450, name: '💎 Vault', items: ['materials', 'materials', 'ammo', 'cash', 'cash'] },
+  ];
+
+  zones.forEach((zone) => {
+    lootZones.push({
+      ...zone,
+      radius: 75,
+      lootSpawned: false,
+    });
+  });
+}
+
+function spawnLootAtZone(zone) {
+  if (zone.lootSpawned) return;
+  zone.lootSpawned = true;
+
+  zone.items.forEach((item, i) => {
+    const angle = (i / zone.items.length) * Math.PI * 2;
+    const distance = 35;
+    const x = zone.x + Math.cos(angle) * distance;
+    const y = zone.y + Math.sin(angle) * distance;
+
+    let value = 0, type = 'cash';
+    if (item === 'cash') {
+      value = 25 + Math.random() * 15;
+      type = 'cash';
+    } else if (item === 'ammo') {
+      value = 15;
+      type = 'ammo';
+    } else if (item === 'shield_pot') {
+      value = 25;
+      type = 'shield';
+    } else if (item === 'materials') {
+      value = 20;
+      type = 'materials';
+    }
+
+    pickups.push({
+      x, y,
+      radius: 8,
+      type,
+      value,
+      pulse: Math.random() * Math.PI * 2,
+      velocity: {
+        x: (Math.random() - 0.5) * 80,
+        y: (Math.random() - 0.5) * 80,
+      },
+    });
+  });
+}
+
+function resetGame() {
+  player.x = world.width / 2;
+  player.y = world.height / 2;
+  player.health = player.maxHealth;
+  player.shield = 0;
+  player.cash = 0;
+  player.materials = 0;
+  player.fireCooldown = 0;
+  player.bullets.length = 0;
+  state.wave = 1;
+  state.spawnTimer = 0;
+  state.gameTime = 0;
+  state.buildMode = null;
+  enemies.length = 0;
+  pickups.length = 0;
+  walls.length = 0;
+  particles.length = 0;
+  initLootZones();
+  updateHud();
+}
+
+function updateHud() {
+  document.getElementById('cashValue').textContent = Math.floor(player.cash);
+  document.getElementById('healthValue').textContent = Math.max(0, Math.ceil(player.health));
+  document.getElementById('shieldValue').textContent = Math.max(0, Math.ceil(player.shield));
+  document.getElementById('waveValue').textContent = state.wave;
+  document.getElementById('materialsValue').textContent = Math.floor(player.materials);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function distance(x1, y1, x2, y2) {
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+function spawnEnemy() {
+  const side = Math.floor(Math.random() * 4);
+  const margin = 50;
+  let x = 0, y = 0;
+
+  if (side === 0) x = Math.random() * world.width, y = -margin;
+  else if (side === 1) x = world.width + margin, y = Math.random() * world.height;
+  else if (side === 2) x = Math.random() * world.width, y = world.height + margin;
+  else x = -margin, y = Math.random() * world.height;
+
+  const baseSpeed = 55 + state.wave * 6;
+  const bounty = 15 + state.wave * 4;
+  const health = 30 + state.wave * 8;
+
+  enemies.push({
+    x, y,
+    radius: 14,
+    speed: baseSpeed,
+    health, maxHealth: health,
+    bounty, damage: 14 + state.wave * 2.5,
+    color: `hsl(${Math.random() * 20 + 8}, 78%, 48%)`,
+  });
+}
+
+function shootBullet() {
+  if (player.fireCooldown > 0 || !state.running) return;
+
+  const dx = mouse.x - player.x;
+  const dy = mouse.y - player.y;
+  const angle = Math.atan2(dy, dx);
+
+  player.angle = angle;
+  player.fireCooldown = player.shootRate;
+
+  player.bullets.push({
+    x: player.x + Math.cos(angle) * (player.radius + 8),
+    y: player.y + Math.sin(angle) * (player.radius + 8),
+    vx: Math.cos(angle) * 600,
+    vy: Math.sin(angle) * 600,
+    radius: 3.5,
+    damage: player.damage,
+    life: 1.1,
+  });
+
+  playShootSound();
+
+  particles.push({
+    x: player.x + Math.cos(angle) * 20,
+    y: player.y + Math.sin(angle) * 20,
+    vx: Math.cos(angle) * 300,
+    vy: Math.sin(angle) * 300,
+    radius: 5,
+    type: 'muzzle',
+    life: 0.08,
+  });
+}
+
+function buildStructure(type) {
+  const costs = { wall: 22, floor: 22, ramp: 26, roof: 24 };
+  const cost = costs[type] || 22;
+  if (player.materials < cost) return;
+
+  player.materials -= cost;
+  playBuildSound();
+
+  const angle = player.angle || 0;
+  const x = player.x + Math.cos(angle) * 50;
+  const y = player.y + Math.sin(angle) * 50;
+
+  walls.push({
+    x, y, w: 40, h: 40,
+    health: 100,
+    type,
+    angle: type === 'ramp' ? angle : 0,
+  });
+
+  state.buildMode = null;
+  updateHud();
+}
+
+function handleInput(dt) {
+  let moveX = 0, moveY = 0;
+
+  if (keys['w'] || keys['arrowup']) moveY -= 1;
+  if (keys['s'] || keys['arrowdown']) moveY += 1;
+  if (keys['a'] || keys['arrowleft']) moveX -= 1;
+  if (keys['d'] || keys['arrowright']) moveX += 1;
+
+  const mag = Math.hypot(moveX, moveY) || 1;
+  if (moveX !== 0 || moveY !== 0) {
+    player.x += (moveX / mag) * player.speed * dt;
+    player.y += (moveY / mag) * player.speed * dt;
+  }
+
+  player.x = clamp(player.x, player.radius, world.width - player.radius);
+  player.y = clamp(player.y, player.radius, world.height - player.radius);
+
+  if (player.fireCooldown > 0) player.fireCooldown -= dt;
+
+  if (mouse.down) shootBullet();
+}
+
+function updateBullets(dt) {
+  for (let i = player.bullets.length - 1; i >= 0; i--) {
+    const bullet = player.bullets[i];
+    bullet.x += bullet.vx * dt;
+    bullet.y += bullet.vy * dt;
+    bullet.life -= dt;
+
+    if (
+      bullet.x < -20 ||
+      bullet.x > world.width + 20 ||
+      bullet.y < -20 ||
+      bullet.y > world.height + 20 ||
+      bullet.life <= 0
+    ) {
+      player.bullets.splice(i, 1);
+      continue;
+    }
+
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const enemy = enemies[j];
+      const dx = bullet.x - enemy.x;
+      const dy = bullet.y - enemy.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < bullet.radius + enemy.radius) {
+        enemy.health -= bullet.damage;
+        player.bullets.splice(i, 1);
+        playHitSound();
+
+        for (let k = 0; k < 5; k++) {
+          particles.push({
+            x: bullet.x, y: bullet.y,
+            vx: (Math.random() - 0.5) * 220,
+            vy: (Math.random() - 0.5) * 220,
+            radius: 3,
+            type: 'damage',
+            life: 0.35,
+          });
+        }
+
+        if (enemy.health <= 0) {
+          enemies.splice(j, 1);
+          player.cash += enemy.bounty;
+          player.materials += 8 + Math.random() * 10;
+          playPickupSound();
+
+          for (let k = 0; k < 8; k++) {
+            particles.push({
+              x: enemy.x, y: enemy.y,
+              vx: (Math.random() - 0.5) * 300,
+              vy: (Math.random() - 0.5) * 300,
+              radius: 4,
+              type: 'death',
+              life: 0.6,
+            });
+          }
+        }
+        break;
+      }
+    }
+  }
+}
+
+function updateEnemies(dt) {
+  enemies.forEach((enemy) => {
+    const dx = player.x - enemy.x;
+    const dy = player.y - enemy.y;
+    const dist = Math.hypot(dx, dy) || 1;
+
+    let moveX = (dx / dist) * enemy.speed * dt;
+    let moveY = (dy / dist) * enemy.speed * dt;
+
+    for (let w = 0; w < walls.length; w++) {
+      const wall = walls[w];
+      const nearX = clamp(enemy.x + moveX, wall.x - wall.w / 2, wall.x + wall.w / 2);
+      const nearY = clamp(enemy.y + moveY, wall.y - wall.h / 2, wall.y + wall.h / 2);
+      const dxw = enemy.x + moveX - nearX;
+      const dyw = enemy.y + moveY - nearY;
+      if (Math.hypot(dxw, dyw) < enemy.radius + 6) {
+        moveX *= 0.3;
+        moveY *= 0.3;
+      }
+    }
+
+    enemy.x += moveX;
+    enemy.y += moveY;
+
+    const playerDist = distance(player.x, player.y, enemy.x, enemy.y);
+    if (playerDist < enemy.radius + player.radius + 2) {
+      const damageAmount = enemy.damage * dt * 2.5;
+      if (player.shield > 0) {
+        const shieldDamage = Math.min(player.shield, damageAmount);
+        player.shield -= shieldDamage;
+        player.health -= damageAmount - shieldDamage;
+      } else {
+        player.health -= damageAmount;
+      }
+    }
+  });
+
+  if (player.health <= 0) {
+    state.running = false;
+    overlay.classList.add('visible');
+    overlay.querySelector('h2').textContent = 'You Were Eliminated';
+    overlay.querySelector('p').textContent = `Wave: ${state.wave} | Cash: $${Math.floor(player.cash)} | Materials: ${Math.floor(player.materials)}`;
+    startButton.textContent = 'Play Again';
+  }
+}
+
+function updatePickups(dt) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const pickup = pickups[i];
+    pickup.pulse += dt * 6;
+    pickup.velocity.y += 80 * dt;
+    pickup.x += pickup.velocity.x * dt;
+    pickup.y += pickup.velocity.y * dt;
+    pickup.velocity.x *= 0.92;
+    pickup.velocity.y *= 0.92;
+
+    const dx = pickup.x - player.x;
+    const dy = pickup.y - player.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < pickup.radius + player.radius + 20) {
+      if (pickup.type === 'cash') player.cash += pickup.value;
+      if (pickup.type === 'shield' && player.shield < player.maxShield) {
+        player.shield = Math.min(player.maxShield, player.shield + pickup.value);
+      }
+      if (pickup.type === 'materials') player.materials += pickup.value;
+
+      pickups.splice(i, 1);
+      playPickupSound();
+      updateHud();
+    }
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function updateWave(dt) {
+  if (enemies.length === 0 && state.running) {
+    state.wave += 1;
+    playLevelUpSound();
+    for (let i = 0; i < Math.min(5 + state.wave, 16); i++) {
+      spawnEnemy();
+    }
+  }
+
+  state.spawnTimer -= dt;
+  if (state.spawnTimer <= 0 && state.running) {
+    state.spawnTimer = Math.max(0.5, 1.5 - state.wave * 0.08);
+    if (enemies.length < 18) spawnEnemy();
+  }
+
+  state.gameTime += dt;
+}
+
+// Rendering
+
+function drawBackground() {
+  ctx.clearRect(0, 0, world.width, world.height);
+  const grad = ctx.createLinearGradient(0, 0, 0, world.height);
+  grad.addColorStop(0, '#0c2a3a');
+  grad.addColorStop(1, '#08202c');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, world.width, world.height);
+
+  ctx.strokeStyle = 'rgba(126, 240, 255, 0.06)';
+  ctx.lineWidth = 1;
+  const grid = 50;
+  for (let x = 0; x <= world.width; x += grid) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, world.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= world.height; y += grid) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(world.width, y);
+    ctx.stroke();
+  }
+
+  lootZones.forEach((zone) => {
+    const grad = ctx.createRadialGradient(zone.x, zone.y, 0, zone.x, zone.y, zone.radius);
+    grad.addColorStop(0, 'rgba(255, 209, 102, 0.08)');
+    grad.addColorStop(1, 'rgba(255, 209, 102, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 209, 102, 0.2)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 209, 102, 0.7)';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(zone.name, zone.x, zone.y);
+  });
+}
+
+function drawWalls() {
+  walls.forEach((wall) => {
+    ctx.save();
+    ctx.translate(wall.x, wall.y);
+    if (wall.type === 'ramp') ctx.rotate(wall.angle);
+
+    ctx.fillStyle = '#4a6b82';
+    ctx.fillRect(-wall.w / 2, -wall.h / 2, wall.w, wall.h);
+    ctx.strokeStyle = 'rgba(126, 240, 255, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(-wall.w / 2, -wall.h / 2, wall.w, wall.h);
+
+    const icons = { wall: '🧱', floor: '📦', ramp: '📐', roof: '🔺' };
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icons[wall.type] || '?', 0, 0);
+
+    ctx.restore();
+  });
+}
+
+function drawEnemies() {
+  enemies.forEach((enemy) => {
+    const grad = ctx.createRadialGradient(enemy.x - 3, enemy.y - 3, 0, enemy.x, enemy.y, enemy.radius);
+    grad.addColorStop(0, 'rgba(255, 100, 120, 0.85)');
+    grad.addColorStop(1, enemy.color);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    const barWidth = enemy.radius * 2.2;
+    const pct = clamp(enemy.health / enemy.maxHealth, 0, 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(enemy.x - barWidth / 2, enemy.y - enemy.radius - 12, barWidth, 3.5);
+    ctx.fillStyle = `hsl(${Math.max(0, pct * 120)}, 100%, 50%)`;
+    ctx.fillRect(enemy.x - barWidth / 2, enemy.y - enemy.radius - 12, barWidth * pct, 3.5);
+  });
+}
+
+function drawBullets() {
+  player.bullets.forEach((bullet) => {
+    ctx.fillStyle = 'rgba(255, 209, 102, 0.4)';
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, bullet.radius * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawPickups() {
+  pickups.forEach((pickup) => {
+    const bob = Math.sin(pickup.pulse) * 2.5;
+    const icons = { cash: '💵', ammo: '🔫', shield: '🛡️', materials: '⚙️' };
+
+    const glowColor = pickup.type === 'cash' ? 'rgba(255, 209, 102, 0.2)' :
+                      pickup.type === 'shield' ? 'rgba(126, 240, 255, 0.2)' :
+                      'rgba(125, 249, 166, 0.2)';
+    ctx.fillStyle = glowColor;
+    ctx.beginPath();
+    ctx.arc(pickup.x, pickup.y + bob, pickup.radius * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(icons[pickup.type] || '📦', pickup.x, pickup.y + bob);
+  });
+}
+
+function drawParticles() {
+  particles.forEach((p) => {
+    const alpha = clamp(p.life, 0, 1);
+    if (p.type === 'muzzle') ctx.fillStyle = `rgba(255, 209, 102, ${alpha * 0.5})`;
+    else if (p.type === 'damage') ctx.fillStyle = `rgba(255, 100, 120, ${alpha * 0.6})`;
+    else if (p.type === 'death') ctx.fillStyle = `rgba(255, 100, 120, ${alpha * 0.4})`;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.angle || 0);
+
+  const grad = ctx.createRadialGradient(-2.5, -2.5, 0, 0, 0, player.radius);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+  grad.addColorStop(0.6, '#7ef0ff');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = '#333';
+  ctx.fillRect(6, -2.5, 16, 5);
+  ctx.fillStyle = '#ffd166';
+  ctx.fillRect(22, -1.5, 6, 3);
+
+  ctx.restore();
+
+  if (player.shield > 0) {
+    ctx.strokeStyle = `rgba(126, 240, 255, ${clamp(player.shield / player.maxShield, 0.25, 0.7)})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawHUD() {
+  // Crosshair
+  ctx.strokeStyle = 'rgba(126, 240, 255, 0.45)';
+  ctx.lineWidth = 1.2;
+  const ch = 12;
+  ctx.beginPath();
+  ctx.moveTo(mouse.x - ch, mouse.y);
+  ctx.lineTo(mouse.x + ch, mouse.y);
+  ctx.moveTo(mouse.x, mouse.y - ch);
+  ctx.lineTo(mouse.x, mouse.y + ch);
+  ctx.stroke();
+
+  // Build mode indicator
+  if (state.buildMode) {
+    const icons = { wall: '🧱', floor: '📦', ramp: '📐', roof: '🔺' };
+    ctx.fillStyle = 'rgba(126, 240, 255, 0.15)';
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, 42, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = 'bold 32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(126, 240, 255, 0.75)';
+    ctx.fillText(icons[state.buildMode] || '?', mouse.x, mouse.y);
+  }
+}
+
+function render() {
+  drawBackground();
+  drawWalls();
+  drawPickups();
+  drawBullets();
+  drawParticles();
+  drawEnemies();
+  drawPlayer();
+  drawHUD();
+}
+
+function gameLoop(timestamp) {
+  const dt = Math.min(0.033, (timestamp - state.lastTime || 16) / 1000);
+  state.lastTime = timestamp;
+
+  if (state.running) {
+    handleInput(dt);
+    updateBullets(dt);
+    updateEnemies(dt);
+    updatePickups(dt);
+    updateParticles(dt);
+    updateWave(dt);
+    updateHud();
+  }
+
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  resetGame();
+  state.running = true;
+  overlay.classList.remove('visible');
+  for (let i = 0; i < 5; i++) spawnEnemy();
+}
+
+window.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  keys[key] = true;
+
+  const buildTypes = { '1': 'wall', '2': 'floor', '3': 'ramp', '4': 'roof' };
+  if (buildTypes[key]) {
+    if (state.buildMode === buildTypes[key]) {
+      buildStructure(state.buildMode);
+    } else {
+      state.buildMode = buildTypes[key];
+    }
+    updateBuildMenu();
+  }
+
+  if (key === 'r') startGame();
+});
+
+window.addEventListener('keyup', (event) => {
+  keys[event.key.toLowerCase()] = false;
+});
+
+canvas.addEventListener('mousemove', (event) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  mouse.x = (event.clientX - rect.left) * scaleX;
+  mouse.y = (event.clientY - rect.top) * scaleY;
+});
+
+canvas.addEventListener('mousedown', () => {
+  mouse.down = true;
+});
+
+canvas.addEventListener('mouseup', () => {
+  mouse.down = false;
+});
+
+function updateBuildMenu() {
+  document.querySelectorAll('.build-slot').forEach((slot) => {
+    const type = slot.getAttribute('data-type');
+    if (state.buildMode === type) {
+      slot.classList.add('active');
+    } else {
+      slot.classList.remove('active');
+    }
+  });
+}
+
+document.querySelectorAll('.build-slot').forEach((slot) => {
+  slot.addEventListener('click', () => {
+    const type = slot.getAttribute('data-type');
+    if (state.buildMode === type) {
+      buildStructure(state.buildMode);
+    } else {
+      state.buildMode = type;
+    }
+    updateBuildMenu();
+  });
+});
+
+startButton.addEventListener('click', startGame);
+lootCloseBtn.addEventListener('click', () => {
+  lootPanel.classList.add('hidden');
+});
+
+resetGame();
+requestAnimationFrame(gameLoop);
